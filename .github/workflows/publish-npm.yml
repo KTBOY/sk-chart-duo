@@ -71,11 +71,28 @@ jobs:
 
       # 无需 NPM_TOKEN：npm 通过 OIDC 使用已配置的 Trusted Publisher 完成鉴权。
       # prepublishOnly 钩子会自动执行 typecheck + test + build，保证发布产物是最新且验证过的。
+      #
+      # 失败时把 npm 的报错原文抬进 annotation：Actions 的日志正文要登录才能看，
+      # 但 annotations 可以匿名经 API 读取，这样远程也能定位（连续 4 次 exit 1 就是这么查的）。
       - name: Publish sk-chart-duo (OIDC Trusted Publishing)
         if: steps.check.outputs.skip != 'true'
         env:
           NPM_CONFIG_PROVENANCE: 'true'
-        run: npm publish --access public --provenance
+        run: |
+          set +e
+          echo "--- 环境：node $(node -v) / npm $(npm -v) / ref ${GITHUB_REF}"
+          for f in ./.npmrc "${HOME}/.npmrc"; do
+            if [ -f "$f" ]; then echo "--- 发现 $f："; sed 's/\(_authToken=\).*/\1<redacted>/' "$f"; else echo "--- 无 $f"; fi
+          done
+          env | grep -iE '^(NPM_CONFIG|ACTIONS_ID_TOKEN)' | sed 's/=.*$/=<set>/' || true
+          OUT=$(npm publish --access public --provenance 2>&1)
+          CODE=$?
+          echo "$OUT"
+          if [ "$CODE" -ne 0 ]; then
+            MSG=$(printf '%s' "$OUT" | grep -iE 'npm error|ENEEDAUTH|E401|E403|E400|provenance|OIDC|attestation|registry' | tail -8 | tr '\n' '|' | sed -e 's/%/%25/g' -e 's/::/%3A%3A/g')
+            echo "::error title=npm publish 失败 exit=$CODE::${MSG:-（未匹配到关键行，见日志）}"
+          fi
+          exit "$CODE"
 
       # npm 发布成功后才创建 GitHub Release；已存在则跳过（支持工作流重跑）。
       # 刻意不加 --verify-tag：它要求签名 tag，而 `npm version` 默认产出的是未签名 annotated tag，
