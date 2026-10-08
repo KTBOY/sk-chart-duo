@@ -88,6 +88,13 @@ GitHub Actions 通过 OIDC 短期身份直接发布，**无需保存任何 NPM_T
 
 `--provenance` 这个 flag **不能省**：npm 不会因为配了 Trusted Publisher 就自动走 OIDC，缺了它就退化成普通鉴权发布，而 CI 上没有 token，于是 `npm publish` 直接失败。这条是踩过才知道的 —— 首次 `v0.1.1` 发布失败（run #1、#2 均卡在 Publish 步骤）时就栽在这里，同时 `package.json` 的 `repository.url` 还指着改名前的 `KTBOY/sk-chart`，两处都得对齐。
 
+还有两个同样会静默卡住 OIDC 的坑（同一 issue 里多人复现）：
+
+- **`setup-node` 不要写 `registry-url`**。它会自动生成一个 `.npmrc`，而 npm 优先读该文件、在里面找 `_authToken`，于是**完全跳过** Trusted Publisher 握手 —— 哪怕那个 token 变量是空的也照样失败。发布目标源交给 `package.json > publishConfig.registry`。
+- **Node 用 24**。node 20/22 自带的 npm 低于 11.5.1；即使工作流里再 `npm install -g npm@latest`，多人反馈仍不生效，升到 node 24 才通。
+
+`publishConfig.provenance: true` 看着像"更保险"，但**别加**：它对本机手动发布路径（`npm publish --otp=`）无效甚至报错，因为 provenance 只在受支持的 CI 环境里才生成得了 —— 开关放在工作流的 flag + `NPM_CONFIG_PROVENANCE` 上就够。
+
 工作流内置两重守卫：
 
 - **tag 与 `package.json` 版本一致性校验**：不一致直接失败，避免打错 tag 发错版本；

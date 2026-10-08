@@ -29,11 +29,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org'
+          # 必须 24：node 20/22 自带的 npm < 11.5.1，OIDC 走不通。
+          node-version: 24
+          # 刻意不写 registry-url —— 它会让 setup-node 自动生成 .npmrc，而 npm 优先读该文件、
+          # 去找里面的 _authToken，从而跳过 Trusted Publisher 的 OIDC 握手（token 为空也一样失败）。
+          # 发布目标源由 package.json > publishConfig.registry 强制指定，无需在这里配。
           cache: npm
 
-      # Trusted Publishing（OIDC）要求 npm >= 11.5.1，runner 自带的是 10.x。
+      # node 24 自带 npm 11.x，这步只是保险：确保 >= 11.5.1 这条 OIDC 下限。
       - name: Upgrade npm
         run: npm install --global npm@latest
 
@@ -70,6 +73,8 @@ jobs:
       # prepublishOnly 钩子会自动执行 typecheck + test + build，保证发布产物是最新且验证过的。
       - name: Publish sk-chart-duo (OIDC Trusted Publishing)
         if: steps.check.outputs.skip != 'true'
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
         run: npm publish --access public --provenance
 
       # npm 发布成功后才创建 GitHub Release；已存在则跳过（支持工作流重跑）。
