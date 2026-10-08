@@ -156,8 +156,17 @@ demo 章节（`## 在线体验`、`## 示例`）、`## 相关链接`、frontmatt
 | P6 无头 Edge 视觉核对 | 已通过（带证据）：CDP 驱动无头 Edge 截 `/chart/` 整页 + 断崖章节放大图；DOM 层对照 `polygon`（0.1.0 直线折面，8 个 / `path` 0 个）vs `path` 贝塞尔（本地修复版，`M204.6,151.16 C215.6,...`） |
 | 追加：文档站「示例」新增「大落差折痕自适应」两图（`SHARP_DROP` / `SPIKE_UP`，站点自有内容，不进 README 真源） | 已交付（本地） |
 | 追加：第 3 层本地通路落地 —— `SK_CHART_LOCAL=1` 的 vite alias + `optimizeDeps.exclude` | 已交付（本地，默认关闭）。**踩到的坑**：只加 alias 不加 exclude 时预打包仍产出旧包，清 `docs/.vitepress/cache` 才生效（已写进 RELEASING） |
-| 提交 / 推送（两个仓库） | 未执行，等指令 |
-| **发布许可** | **未获 —— 且现在是硬依赖**：不发一个含 region README 的版本，文档站构建过不去 |
+| 提交 / 推送（sk-chart） | 已通过：`7229a06` → `fd1d255` → `2f8a7ac` → `9ab0e3a` → `c376d51` 均已推 main |
+| 发布 | **已通过**：`sk-chart-duo@0.1.1` 已上 npm（版本端点 HTTP 200，`license: GPL-3.0-only`，`repository` 已对齐新名），GitHub Release `v0.1.1` 已创建 |
+| 文档站 bump 依赖 + 还原 include | 已交付（本地，未提交）：装到 `0.1.1`，三条 include 已还原为 node_modules 路径 |
+| 最终门禁 `pnpm docs:build` | **已通过**：EXIT=0 / 12.74s；`@include:` 残留 0、徽章泄漏 0、`ariaLabel` 1、`id="特性"` 1、本地路径残留 0、`大落差折痕自适应` 1、版本徽标渲染 `v0.1.1` |
+| 提交 / 推送（sh-design） | 未执行，等指令（该仓库另有你自己的在途改动，push main 会直接上线 Pages） |
+
+### 发布这一步实际卡住的原因（与本文原计划不同）
+
+原计划以为发包是一次动作；实测连挂 5 次，真因是 **npm Trusted Publisher 的 `Allow npm publish` 权限没勾** —— npm 页面上"stage publish 始终允许"那句话不覆盖 `npm publish` 的直接 PUT。我上一轮建议"两个 checkbox 都不勾"是错的。排查过程中顺带修掉的 `--provenance`、`repository.url` 对齐、node 24、去掉 `setup-node` 的 `registry-url` 都是必要条件，但都不是那几次失败的报错来源。全过程与依据记在 `RELEASING.md` 第二节。
+
+定位手段值得留档：Actions 日志正文要登录才能读，匿名 API 只有步骤名与 annotation；因此给 Publish 步骤加了失败时把 npm 报错行抬进 `::error::` annotation 的兜底 —— 第 5 次就是靠它一句 `403 OIDC permission denied for this action` 收敛的。
 
 ### P5 实测证据（比原计划更硬，且推翻了我对失败模式的假设）
 

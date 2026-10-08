@@ -179,12 +179,14 @@ npm install sk-chart-duo --registry=https://registry.npmjs.org
 
 ```powershell
 cd D:\my\git\sh-ui
-pnpm --filter @sh-design/docs update sk-chart-duo   # 刷新依赖 + pnpm-lock.yaml
-pnpm docs:build                                      # 构建，EXIT 必须为 0
-git add docs/package.json pnpm-lock.yaml && git commit && git push  # push main 即自动部署 Pages
+pnpm --filter @sh-design/docs add sk-chart-duo@^0.1.1   # 显式指定版本，见下方注意
+pnpm docs:build                                          # 构建，EXIT 必须为 0
+git add docs/package.json pnpm-lock.yaml pnpm-workspace.yaml && git commit && git push  # push main 即自动部署 Pages
 ```
 
-**为什么必须显式 bump**：文档站锁的是 `^0.1.0`，而 caret 在 `0.x` 阶段等价 `>=0.1.0 <0.2.0`。发 `0.2.0` 后不 bump，`@include` 取到的旧包 README 与 demo 运行的旧 dist 会一起停在 0.1.0 —— 好在两者同源，不会互相打脸。
+**别用 `pnpm update sk-chart-duo`**：实测它会"跑成功"但装的仍是旧版本 —— pnpm 的 registry 元数据缓存和 `minimumReleaseAge` 供应链接入控制都会把刚发布的版本挡在外面。显式 `add sk-chart-duo@^<新版本>` 才会真的换掉，代价是 pnpm 会往 `pnpm-workspace.yaml` 写一条 `minimumReleaseAgeExclude` 放行记录（这个文件也要一起提交）。
+
+**为什么必须显式 bump**：文档站原先锁 `^0.1.0`，而 caret 在 `0.x` 阶段等价 `>=0.1.0 <0.2.0`。发 `0.2.0` 后不 bump，`@include` 取到的旧包 README 与 demo 运行的旧 dist 会一起停在 0.1.0 —— 好在两者同源，不会互相打脸。
 
 **顺序红线**：`@include` 引用的 region 必须**已经存在于已发布版本**里。若文档站先改了 `@include` 而 npm 上的 README 还没有 region 标记，VitePress 找不到片段名时不会报错，而是把**整份 README** 灌进页面（包括徽章、`./LICENSE` 相对链接与 License 全文）—— 这是 `vitepress@1.5.0` 里 `lines.slice(undefined, undefined)` 的行为。所以顺序恒为：README 改动 → 发包 → 文档站 bump。
 
