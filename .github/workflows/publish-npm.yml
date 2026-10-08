@@ -7,7 +7,7 @@ name: Publish to npm
 #   Repository:          sk-chart-duo   # 必须与 package.json > repository.url 指向的仓库同名
 #   Workflow filename:   publish-npm.yml
 #   Environment:         留空
-#   Allowed actions:     全部不勾（npm stage publish 始终允许，已够本工作流用）
+#   Allowed actions:     必须勾 Allow npm publish（npm publish 是直接 PUT，不是 stage publish）
 #
 # 触发：推送 v* tag（如 v0.1.0），发布成功后自动创建 GitHub Release —— 全自动、零手动点击。
 on:

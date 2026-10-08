@@ -78,20 +78,26 @@ GitHub Actions 通过 OIDC 短期身份直接发布，**无需保存任何 NPM_T
 - Repository：`sk-chart-duo`（GitHub 仓库现名；填错或仓库改名后没跟着改，OIDC 断言对不上，发布直接被拒）
 - Workflow filename：`publish-npm.yml`（只填文件名，不带 `.github/workflows/` 前缀）
 - Environment：留空
-- Allowed actions：**全部不勾** —— `npm stage publish` 始终允许，已覆盖本工作流；勾 `Allow npm publish` / `Allow npm dist-tag` 是额外放开直发与改 dist-tag 的权限，用不上就别给
+- Allowed actions：**必须勾 `Allow npm publish`**。npm 页面上那句"npm stage publish is always allowed"只覆盖"暂存发布"这一步，而 `npm publish` 是直接 PUT 发布 —— 不勾就会拿到 `403 OIDC permission denied for this action`（provenance 都已成功写进 sigstore 透明日志，只差最后一步）。`Allow npm dist-tag` 不用勾，我们不单独改 dist-tag。
 
-保存即可。注意 npm 的这条配置**创建后不可修改**，填错了只能 Delete 再重建。
+保存即可。注意 npm 的这条配置**创建后不可修改必填项**，改权限点 Edit 试试，不行就 Delete 再重建。
 
 ### 2. 工作流已就绪
 
 [`.github/workflows/publish-npm.yml`](./.github/workflows/publish-npm.yml) 已配置为 OIDC 发布：`id-token: write` 权限 + 升级 npm 到最新（OIDC 需 npm >= 11.5.1）+ `npm publish --access public --provenance`，**无需任何密钥**。
 
-`--provenance` 这个 flag **不能省**：npm 不会因为配了 Trusted Publisher 就自动走 OIDC，缺了它就退化成普通鉴权发布，而 CI 上没有 token，于是 `npm publish` 直接失败。这条是踩过才知道的 —— 首次 `v0.1.1` 发布失败（run #1、#2 均卡在 Publish 步骤）时就栽在这里，同时 `package.json` 的 `repository.url` 还指着改名前的 `KTBOY/sk-chart`，两处都得对齐。
+`--provenance` 这个 flag **不能省**：npm 不会因为配了 Trusted Publisher 就自动走 OIDC，缺了它就退化成普通鉴权发布，而 CI 上没有 token，于是 `npm publish` 直接失败。
 
-还有两个同样会静默卡住 OIDC 的坑（同一 issue 里多人复现）：
+**首次 `v0.1.1` 连挂 5 次才定位到真因，过程记在这里免得重走**：前 4 次全是同一个 `exit 1`，而 Actions 的日志正文要登录才能读、匿名 API 只给步骤名和 annotation。于是给 Publish 步骤加了兜底 —— 失败时把 npm 的报错行抬进 `::error::` annotation（annotation 可匿名读），第 5 次直接拿到：
 
-- **`setup-node` 不要写 `registry-url`**。它会自动生成一个 `.npmrc`，而 npm 优先读该文件、在里面找 `_authToken`，于是**完全跳过** Trusted Publisher 握手 —— 哪怕那个 token 变量是空的也照样失败。发布目标源交给 `package.json > publishConfig.registry`。
-- **Node 用 24**。node 20/22 自带的 npm 低于 11.5.1；即使工作流里再 `npm install -g npm@latest`，多人反馈仍不生效，升到 node 24 才通。
+```
+npm error 403 Forbidden - PUT https://registry.npmjs.org/sk-chart-duo
+npm error OIDC permission denied for this action
+```
+
+就是上面 **Allowed actions 没勾 `Allow npm publish`** 那一条。当时 provenance 已经生成并写进 sigstore 透明日志，只差最后那个 PUT。
+
+排查路上顺带修掉的三处**确实是要求**（不修也过不去，但都不是那 4 次的报错来源，别把它们当成病因）：`--provenance` flag；`package.json` 的 `repository.url` 对齐改名后的仓库；node 升到 24 且去掉 `setup-node` 的 `registry-url` —— 后者会自动生成 `.npmrc`，npm 优先读它去找 `_authToken` 从而跳过 OIDC 握手（npm/cli#8730 多人复现，且 node 20/22 自带 npm 低于 11.5.1）。
 
 `publishConfig.provenance: true` 看着像"更保险"，但**别加**：它对本机手动发布路径（`npm publish --otp=`）无效甚至报错，因为 provenance 只在受支持的 CI 环境里才生成得了 —— 开关放在工作流的 flag + `NPM_CONFIG_PROVENANCE` 上就够。
 
