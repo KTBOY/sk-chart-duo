@@ -155,10 +155,47 @@ npm install sk-chart-duo --registry=https://registry.npmjs.org
 
 ---
 
+## 文档站同步（发版后必做）
+
+本仓库 `README.md` 里的 `<!-- #region features -->` / `#quickstart` / `#api` 三段是**文档站正文的唯一真源**。文档站（`KTBOY/sh-design`，本地 `D:\my\git\sh-ui`）的 `docs/chart/index.md` 不重写这些内容，而是用 VitePress 的 `@include` 从已安装的 npm 包里读这三段，页面自己只保留实时 demo 与站点排版。
+
+因此发版后要走这一步，否则线上文档停在旧版本：
+
+```powershell
+cd D:\my\git\sh-ui
+pnpm --filter @sh-design/docs update sk-chart-duo   # 刷新依赖 + pnpm-lock.yaml
+pnpm docs:build                                      # 构建，EXIT 必须为 0
+git add docs/package.json pnpm-lock.yaml && git commit && git push  # push main 即自动部署 Pages
+```
+
+**为什么必须显式 bump**：文档站锁的是 `^0.1.0`，而 caret 在 `0.x` 阶段等价 `>=0.1.0 <0.2.0`。发 `0.2.0` 后不 bump，`@include` 取到的旧包 README 与 demo 运行的旧 dist 会一起停在 0.1.0 —— 好在两者同源，不会互相打脸。
+
+**顺序红线**：`@include` 引用的 region 必须**已经存在于已发布版本**里。若文档站先改了 `@include` 而 npm 上的 README 还没有 region 标记，VitePress 找不到片段名时不会报错，而是把**整份 README** 灌进页面（包括徽章、`./LICENSE` 相对链接与 License 全文）—— 这是 `vitepress@1.5.0` 里 `lines.slice(undefined, undefined)` 的行为。所以顺序恒为：README 改动 → 发包 → 文档站 bump。
+
+**本地预览未发布的改动**：文档站有两条独立的本地通路，都要在提交前还原。
+
+- 正文：把 `@include` 路径临时改成 `../../../../sk-chart/README.md#api`
+- 运行时：`SK_CHART_LOCAL=1 pnpm docs:dev` 让 demo 加载 `../sk-chart/dist`（见 `docs/.vitepress/config.ts` 的 alias）
+
+切换这个开关必须顺手删掉 `docs/.vitepress/cache`：Vite 的依赖预打包会缓存上一版的 `sk-chart-duo`，不清缓存就会拿着旧包继续渲染，图看起来"没变化"但其实测的是旧代码。配置里已给该包加 `optimizeDeps.exclude`，正是因为预打包会绕过 alias。
+
+### 构建后断言
+
+```bash
+D=docs/.vitepress/dist/chart/index.html
+grep -c '@include:' $D        # 期望 0 —— 三条 include 都真展开了
+grep -c 'img.shields.io' $D   # 期望 0 —— 徽章没被灌进页面（region 未命中时会泄漏整份 README）
+grep -c 'ariaLabel' $D        # 期望 >=1 —— 已发布版本的真源确实是新的
+grep -cF '../../../../sk-chart' docs/chart/index.md   # 期望 0 —— 本地调试路径没被提交（CI 机上没有 D:\my\sk-chart）
+```
+
+---
+
 ## 发布检查清单
 
 - [ ] `npm run ci` 全绿（typecheck / lint / test / build）
-- [ ] README 的 API 表格与新能力同步
+- [ ] README 的 API 表格与新能力同步（改动落在 `#region api` 内才会同步到文档站）
+- [ ] 发版后按「文档站同步」一节 bump 依赖，三条构建后断言计数符合期望
 - [ ] 按 SemVer 正确升级了版本号
 - [ ] `npm publish` 成功（或 tag 触发的 OIDC 工作流成功）
 - [ ] `git push --follow-tags` 已推送版本提交与 tag

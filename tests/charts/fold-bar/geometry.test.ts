@@ -9,6 +9,7 @@ import {
   pillGeometry,
   tooltipPlacement,
   washRect,
+  type FoldBarLayout,
   type FoldBarLayoutInput,
   type PillOptions,
 } from '../../../src/charts/fold-bar/geometry';
@@ -107,21 +108,67 @@ describe('barGeometry', () => {
 });
 
 describe('flapGeometry', () => {
+  // Fold zone edges of the flap that follows column `index`.
+  const edges = (layout: FoldBarLayout, index: number) => ({
+    x0: layout.plot.left + index * layout.colWidth + 1 + layout.barWidth,
+    x1: layout.plot.left + (index + 1) * layout.colWidth + 2,
+  });
+
   it('builds the fold flap between two columns', () => {
     const layout = computeLayout(input);
     const flap = flapGeometry(layout, 0, VALUES);
     expect(flap).not.toBeNull();
-    expect(flap!.crease.x1).toBeCloseTo(204.6, 6);
-    expect(flap!.crease.y1).toBeCloseTo(163.4286, 2);
-    expect(flap!.crease.x2).toBeCloseTo(226.6, 6);
-    expect(flap!.crease.y2).toBeCloseTo(212.3299, 1);
-    expect(flap!.gradientY).toEqual([flap!.crease.y1, 360]);
-    expect(flap!.points).toContain('226.6,360');
+    const { x0, x1 } = edges(layout, 0);
+    expect(flap!.d.startsWith(`M${x0},${layout.barTopOf(VALUES[0])}`)).toBe(true);
+    expect(flap!.d).toContain(`L${x1},${layout.plot.bottom}`);
+    expect(flap!.d.endsWith('Z')).toBe(true);
   });
 
   it('returns null for the last column', () => {
     const layout = computeLayout(input);
     expect(flapGeometry(layout, 4, VALUES)).toBeNull();
+  });
+
+  it('keeps a gentle crease straight with the gradient reaching the baseline', () => {
+    const values = [65.2, 60, 58];
+    const layout = computeLayout({ ...input, exponent: 1, values });
+    const flap = flapGeometry(layout, 0, values)!;
+    const { x0, x1 } = edges(layout, 0);
+    const y0 = layout.barTopOf(values[0]);
+    const y1 = layout.barTopOf(values[1]);
+    expect(flap.creaseD).toBe(`M${x0},${y0} L${x1},${y1}`);
+    expect(flap.gradientY).toEqual([y0, layout.plot.bottom]);
+  });
+
+  it('rounds a near-vertical crease into an S with horizontal tangents at both bar tops', () => {
+    const values = [65.2, 12.6, 9.4];
+    const layout = computeLayout({ ...input, exponent: 1, values });
+    const flap = flapGeometry(layout, 0, values)!;
+    const { x0, x1 } = edges(layout, 0);
+    const y0 = layout.barTopOf(values[0]);
+    const y1 = layout.barTopOf(values[1]);
+    const bend = (x1 - x0) / 2;
+    expect(flap.creaseD).toBe(`M${x0},${y0} C${x0 + bend},${y0} ${x1 - bend},${y1} ${x1},${y1}`);
+    // The lit band hugs the crease instead of stretching down the whole wall.
+    expect(flap.gradientY[0]).toBeCloseTo(Math.min(y0, y1), 6);
+    expect(flap.gradientY[1]).toBeLessThan(layout.plot.bottom);
+  });
+
+  it('anchors the fold gradient at the higher bar top when the next column is taller', () => {
+    const values = [9.4, 65.2, 40];
+    const layout = computeLayout({ ...input, exponent: 1, values });
+    const flap = flapGeometry(layout, 0, values)!;
+    expect(flap.gradientY[0]).toBeCloseTo(layout.barTopOf(65.2), 6);
+    expect(flap.gradientY[0]).toBeLessThan(layout.barTopOf(9.4));
+  });
+
+  it('eases the bend in proportion to the crease slope', () => {
+    const layout = computeLayout(input);
+    const flap = flapGeometry(layout, 0, VALUES)!;
+    const { x0, x1 } = edges(layout, 0);
+    const bend = Number(flap.creaseD.match(/C([\d.]+)/)![1]) - x0;
+    expect(bend).toBeGreaterThan(0);
+    expect(bend).toBeLessThan((x1 - x0) / 2);
   });
 });
 

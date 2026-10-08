@@ -1,4 +1,4 @@
-import { FoldBarChart, type FoldBarDatum } from '../src/index';
+import { defaultTooltipFormatter, FoldBarChart, type FoldBarDatum } from '../src/index';
 
 const PAYMENTS: FoldBarDatum[] = [
   { label: '发起支付', value: 65.2 },
@@ -16,6 +16,24 @@ const WEEK: FoldBarDatum[] = [
   { label: '周五', value: 31.5 },
   { label: '周六', value: 27.8 },
   { label: '周日', value: 21.3 },
+];
+
+// Crease self-adaptation: a cliff between the first two stages.
+const SHARP_DROP: FoldBarDatum[] = [
+  { label: '发起支付', value: 65.2 },
+  { label: '授权支付', value: 12.6 },
+  { label: '支付成功', value: 9.4 },
+  { label: '商户打款', value: 6.1 },
+  { label: '完成交易', value: 3.8 },
+];
+
+// ...and the reverse, where the next stage towers over the previous one.
+const SPIKE_UP: FoldBarDatum[] = [
+  { label: '曝光', value: 6.0 },
+  { label: '点击', value: 65.2 },
+  { label: '加购', value: 48.6 },
+  { label: '下单', value: 38.3 },
+  { label: '成交', value: 32.9 },
 ];
 
 const logEl = document.getElementById('log')!;
@@ -153,8 +171,29 @@ document.getElementById('btn-random')!.addEventListener('click', () => {
 });
 
 document.getElementById('btn-restore')!.addEventListener('click', () => {
-  chart1.update({ data: PAYMENTS });
-  log('实例1 update：还原原稿数据');
+  chart1.update({
+    data: PAYMENTS,
+    scale: { exponent: 2 },
+    tooltip: { formatter: paymentsFormatter },
+  });
+  log('实例1 update：还原原稿数据（exponent 2）');
+});
+
+// Linear mapping keeps the bar heights honest, so the crease has to cope with the gap.
+const CLIFF_SCALE = { exponent: 1 };
+
+document.getElementById('btn-cliff')!.addEventListener('click', () => {
+  chart1.update({ data: SHARP_DROP, scale: CLIFF_SCALE });
+  log('实例1 update：断崖数据 65.2 → 12.6（线性），折痕自动弯成 S 形');
+});
+
+document.getElementById('btn-spike')!.addEventListener('click', () => {
+  chart1.update({
+    data: SPIKE_UP,
+    scale: CLIFF_SCALE,
+    tooltip: { formatter: defaultTooltipFormatter },
+  });
+  log('实例1 update：尖峰数据 6.0 → 65.2（线性），折痕反向起坡');
 });
 
 let bottomAxisOn = false;

@@ -7,11 +7,18 @@ A lightweight, SVG-first chart library with handcrafted visual styles.
 
 首版提供 **FoldBarChart**：折纸漏斗柱状图 —— 渐变柱体由"折面"相连，闲置列呈条纹纸感，高亮列浮起 wash 与 tooltip。源自 `payments-fold-chart.html` 效果 3 的组件化实现。
 
-- **零依赖**，gzip ~8KB
-- **SVG 渲染**，viewBox 设计空间，任意容器宽度自适应
+<!-- 下方 #region features / quickstart / api 三段是文档站 ktboy.github.io/sh-design/chart 的 @include 真源；
+     GitHub 专属装饰（徽章、包名脚注、License 全文、相对链接）必须留在 region 之外，否则会在站点里 404。 -->
+
+<!-- #region features -->
+- **零依赖**，gzip ~8KB，直接引入构建产物（ESM / CJS）或 npm 安装
+- **SVG 渲染**，viewBox 设计空间，任意容器宽度自适应；SVG 本身透明，底色由宿主页面控制
 - **G2Plot 风格 API**：`new FoldBarChart(el, config)` + `update` / `resize` / `destroy` / `on`
-- **多实例安全**：defs id 与样式按实例隔离
+- **多实例安全**：`defs` id 与样式按实例隔离，同页多图互不干扰
+- **主题系统**：内置 `light` / `dark` 预设，`registerTheme` 注册自定义主题包，皮肤 / token / 格式化三层可配
+- **导出与无障碍**：`toSVGString` / `getDataURL` / `download`；键盘 `←` `→` `Home` `End` 导航，`prefers-reduced-motion` 自动降级
 - **TypeScript strict**，几何与比例尺全部纯函数 + 单测覆盖
+<!-- #endregion features -->
 
 ## 安装
 
@@ -25,6 +32,7 @@ npm install sk-chart-duo
 
 ## 快速上手
 
+<!-- #region quickstart -->
 ```ts
 import { FoldBarChart } from 'sk-chart-duo';
 
@@ -46,6 +54,7 @@ chart.update({ data: nextData }); // 全量重绘
 chart.resize(960, 430);           // 变更 viewBox 设计空间
 chart.destroy();                  // 清理 DOM 与事件
 ```
+<!-- #endregion quickstart -->
 
 本地 demo：
 
@@ -56,6 +65,7 @@ npm run dev      # Vite，打开 examples/
 
 ## API
 
+<!-- #region api -->
 ### `FoldBarChartConfig`
 
 | 字段 | 类型 | 默认 | 说明 |
@@ -64,6 +74,7 @@ npm run dev      # Vite，打开 examples/
 | `xField` / `yField` | `string` | `label` / `value` | 数据字段映射 |
 | `width` / `height` | `number` | `860` / `386` | viewBox 设计空间 |
 | `valueFormat` | `(v) => string` | `v => v.toFixed(1)+'k'` | 柱头数值格式 |
+| `ariaLabel` | `string` | `'fold bar chart'` | SVG 根节点的 `aria-label` |
 | `padding` | `Partial<{top,right,bottom,left}>` | `64/29/26/73` | 绘图区留白；启用 `xAxis.bottomLabels` 时底部自动扩高 |
 | `stair` | `{ bottomOffset?, topOffset? }` | `30` / `74` | 柱顶阶梯锚点（value=0 与 max 的柱顶位置） |
 | `scale.exponent` | `number` | `1` | 高度映射幂次；`2` 还原折纸漏斗轮廓 |
@@ -85,6 +96,8 @@ npm run dev      # Vite，打开 examples/
 | `theme` | `'light' \| 'dark' \| ThemePack \| DeepPartialTokens` | 原稿外观（等价 `'light'`） | 预设名 / 内联主题包 / 旧版字体 token 局部，三种形态均可 |
 
 SVG 本身透明、不画背景，底色由宿主页面控制（白底卡片或深色背景均可）。
+
+折面水平跨度固定，因此相邻两列高差过大时折痕会很陡。此时折痕从直线渐变为 S 形曲线（水平切线进出两柱柱顶），折面高光带同步收拢到折痕附近；斜率 ≤ 1:1 时保持直线，与平缓漏斗观感一致。
 
 ### 主题预设
 
@@ -109,21 +122,30 @@ new FoldBarChart(el, { data, theme: { tokens: { ... } } }); // 内联主题包
 
 ### 事件
 
-`column:enter` / `column:leave` / `column:click`，payload 为 `{ index, datum }`。
+| 事件名           | 回调参数             | 触发时机                                       |
+| ---------------- | -------------------- | ---------------------------------------------- |
+| `column:enter` | `{ index, datum }` | 鼠标 / 触摸进入某列                            |
+| `column:leave` | `{ index, datum }` | 移出某列                                       |
+| `column:click` | `{ index, datum }` | 点击列，或 SVG 聚焦后 `Enter` / `Space` 触发 |
 
 ### 方法
 
-`update(partial)`、`resize(w, h)`、`destroy()`、`on/off`、`setActive(i)`、`activeIndex`。
-
-导出：
-
-- `toSVGString(): string` — 独立 SVG 文本（内嵌样式与 defs，含 xmlns/宽高），可直接存 `.svg` 或内联
-- `getDataURL({ type?: 'png' | 'svg', scale?: number, background?: string }): Promise<string>` — 默认 PNG 2x；`background` 缺省透明
-- `download({ filename?, type?, scale?, background? }): Promise<void>` — 触发浏览器下载，默认 `sk-chart.png`
+| 方法                                             | 说明                                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `update(partial)`                              | 合并部分 config 并全量重绘                                                                        |
+| `resize(width, height)`                        | 变更 viewBox 设计空间并重绘                                                                       |
+| `on(event, handler)` / `off(event, handler)` | 绑定 / 解绑事件                                                                                   |
+| `setActive(index)`                             | 编程式高亮指定列                                                                                  |
+| `activeIndex`                                  | 当前高亮列下标（只读 getter）                                                                     |
+| `toSVGString()`                                | 独立 SVG 文本（内嵌样式与 defs，含 xmlns / 宽高），可直接存 `.svg` 或内联                       |
+| `getDataURL(options?)`                         | 当前图表 data URL，默认 PNG 2x；`options`：`type: 'png' \| 'svg'` / `scale` / `background`（缺省透明） |
+| `download(options?)`                           | 触发浏览器下载，默认 `sk-chart.png`；`options` 同上另加 `filename`                             |
+| `destroy()`                                    | 清理 DOM 与事件                                                                                   |
 
 ### 交互与无障碍
 
 悬停/触摸切换高亮列；SVG 聚焦后 `←` / `→` / `Home` / `End` 导航，`Enter` / `Space` 触发 `column:click`；移出回落到 `defaultActive`。列具备 `role="listitem"` 与同步的 `aria-selected`；`prefers-reduced-motion: reduce` 下自动关闭过渡动画。
+<!-- #endregion api -->
 
 ## 开发
 

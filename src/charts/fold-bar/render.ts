@@ -139,17 +139,13 @@ export function renderFoldBar(uid: string, model: FoldBarModel): FoldBarRenderRe
     const flap = flaps[i];
     if (flap) {
       col.appendChild(
-        createSvgElement('polygon', { points: flap.points, fill: urlRef(uid, `fold${i}`) }),
+        createSvgElement('path', { d: flap.d, fill: urlRef(uid, `fold${i}`) }),
       );
+      col.appendChild(createSvgElement('path', { d: flap.d, fill: urlRef(uid, 'crease') }));
       col.appendChild(
-        createSvgElement('polygon', { points: flap.points, fill: urlRef(uid, 'crease') }),
-      );
-      col.appendChild(
-        createSvgElement('line', {
-          x1: flap.crease.x1,
-          y1: flap.crease.y1,
-          x2: flap.crease.x2,
-          y2: flap.crease.y2,
+        createSvgElement('path', {
+          d: flap.creaseD,
+          fill: 'none',
           stroke: options.fold.creaseColor,
           'stroke-width': options.fold.creaseWidth,
         }),

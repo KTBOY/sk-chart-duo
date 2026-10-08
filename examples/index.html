@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sk-chart · FoldBarChart Demo</title>
+<title>sk-chart-duo · FoldBarChart Demo</title>
 <style>
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -53,10 +53,10 @@
 <body>
   <div class="shell">
     <header>
-      <h1>sk-chart · FoldBarChart</h1>
+      <h1>sk-chart-duo · FoldBarChart</h1>
       <p class="sub">
         实例 1：原稿数据 + <code>scale.exponent: 2</code> + <code>defaultActive: 2</code>，用于与
-        payments-fold-chart.html 效果 3 像素级对照。<br>
+        payments-fold-chart.html 效果 3 视觉对照（折痕按高差斜率自适应，见 README）。<br>
         实例 2：7 条数据 + 线性映射 + 自定义配色，验证参数化。悬停 / 点击 / 方向键均可交互。<br>
         实例 3：完整 X 轴 —— 基线 + 刻度线 + 底部语义行（阶段 / 转化率）+ X 轴标题。
       </p>
@@ -69,11 +69,14 @@
       <div class="toolbar">
         <button id="btn-random" type="button">随机更新数据（实例 1）</button>
         <button id="btn-restore" type="button">还原原稿数据</button>
+        <button id="btn-cliff" type="button">折痕演示：断崖落差 65.2 → 12.6</button>
+        <button id="btn-spike" type="button">折痕演示：反向尖峰 6.0 → 65.2</button>
         <button id="btn-xaxis" type="button">切换底部语义轴（实例 1）</button>
         <button id="btn-toggle" type="button">销毁 / 重建实例 2</button>
       </div>
       <div id="chart-1"></div>
-      <p class="note">悬停切换高亮列；移出后回到 defaultActive；点击列会触发 column:click 事件。</p>
+      <p class="note">悬停切换高亮列；移出后回到 defaultActive；点击列会触发 column:click 事件。<br>
+      折痕观察点：相邻两列高差越大，折痕斜率越陡；超过 1:1 后折痕会从直线渐变为 S 形（水平切线进出柱顶），折面高光带同步收拢到折痕附近。点「断崖落差」「反向尖峰」看两种方向，「还原原稿数据」回到平缓漏斗。</p>
     </section>
 
     <section class="card flat">

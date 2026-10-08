@@ -109,15 +109,31 @@ export function barGeometry(layout: FoldBarLayout, index: number, value: number)
 }
 
 export interface FlapGeometry {
-  /** SVG polygon points attribute. */
-  points: string;
-  /** Crease segment: from current bar top to next bar top. */
-  crease: { x1: number; y1: number; x2: number; y2: number };
+  /** SVG path data for the flap body: the crease curve plus both sides down to the baseline. */
+  d: string;
+  /** The crease curve on its own, stroked as the lit fold edge. */
+  creaseD: string;
   /** y range for the userSpaceOnUse fold gradient. */
   gradientY: [number, number];
 }
 
-/** Fold flap connecting column index to column index+1. Null for the last column. */
+/** Crease slope (drop per unit of fold run) up to which the fold stays a straight line. */
+const STRAIGHT_SLOPE = 1;
+/** Crease slope at which the fold reaches its fully rounded S shape. */
+const FULL_CURVE_SLOPE = 4;
+/** Share of the wall below the crease that keeps the fold gradient's falloff. */
+const GRADIENT_TAIL = 0.35;
+
+const clamp01 = (v: number): number => Math.min(Math.max(v, 0), 1);
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+/**
+ * Fold flap connecting column index to column index+1. Null for the last column.
+ *
+ * The fold's horizontal run is fixed, so a large value gap would otherwise turn the crease
+ * into a near-vertical slash. Past STRAIGHT_SLOPE the crease eases into an S curve and the
+ * fold gradient tightens around it, both scaled by how far past that threshold it is.
+ */
 export function flapGeometry(
   layout: FoldBarLayout,
   index: number,
@@ -129,10 +145,23 @@ export function flapGeometry(
   const y0 = layout.barTopOf(values[index]);
   const y1 = layout.barTopOf(values[index + 1]);
   const bottom = layout.plot.bottom;
+  const run = x1 - x0;
+  const slope = run > 0 ? Math.abs(y1 - y0) / run : 0;
+  const curve = clamp01((slope - STRAIGHT_SLOPE) / (FULL_CURVE_SLOPE - STRAIGHT_SLOPE));
+  const bend = (run / 2) * curve;
+  const creaseD =
+    bend === 0
+      ? `M${x0},${y0} L${x1},${y1}`
+      : `M${x0},${y0} C${x0 + bend},${y0} ${x1 - bend},${y1} ${x1},${y1}`;
+  const low = Math.max(y0, y1);
+  const gradientY: [number, number] = [
+    lerp(y0, Math.min(y0, y1), curve),
+    lerp(bottom, low + (bottom - low) * GRADIENT_TAIL, curve),
+  ];
   return {
-    points: `${x0},${y0} ${x1},${y1} ${x1},${bottom} ${x0},${bottom}`,
-    crease: { x1: x0, y1: y0, x2: x1, y2: y1 },
-    gradientY: [y0, bottom],
+    d: `${creaseD} L${x1},${bottom} L${x0},${bottom} Z`,
+    creaseD,
+    gradientY,
   };
 }
 

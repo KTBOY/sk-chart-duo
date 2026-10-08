@@ -40,6 +40,8 @@ npm run ci         # 门禁四连：typecheck + lint + test + build
 - 实例隔离：uid 前缀覆盖 defs id、class 名、scoped CSS
 - update/resize 全量重建（userSpaceOnUse 坐标耦合）；增量 diff 属 M1
 - `scale.exponent` 默认 1（线性），2 还原折纸轮廓；非法值钳制并 warn
+- README 的 `#region features / quickstart / api` 三段是**文档站正文唯一真源**：`KTBOY/sh-design` 的 `docs/chart/index.md` 用 VitePress `@include` 从已安装的 npm 包里读这三段，站点自己只留实时 demo。改这三段 = 改线上文档，且**必须发包后**站点才生效（顺序与断言见 `RELEASING.md`「文档站同步」）
+- 折痕自适应：`flapGeometry` 按斜率 `Δy / fold.run` 把直线折痕弯成 S 形（≤1 保持直线、≥4 完全成型），折面渐变区间随同一系数从 `[y0, plot.bottom]` 收拢到折痕带；平缓数据逐点退化为旧行为
 - Y 轴刻度为真映射：原稿效果 3 的刻度是手摆装饰位，实现按 `barTopOf(tickValue)` 定位，差异为有意偏离；刻度由 `niceScale` 生成，`axis.ticks` 可覆盖
 - `xAxis.bottomLabels` 渲染在无渐隐遮罩的独立 `axisLayer`（pointer-events:none），并按行数自动扩底部留白
 

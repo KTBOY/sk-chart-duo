@@ -36,7 +36,7 @@ describe('boundary regressions', () => {
     const el = host();
     const chart = new FoldBarChart(el, { data: DATA([5]) });
     expect(el.querySelectorAll('g[data-i]').length).toBe(1);
-    expect(el.querySelectorAll('polygon').length).toBe(0);
+    expect(el.querySelectorAll('path').length).toBe(0);
     chart.destroy();
   });
 
