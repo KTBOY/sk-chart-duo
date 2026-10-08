@@ -6,9 +6,9 @@
 
 ## 包名说明（重要）
 
-- **npm 包名：`sk-chart-duo`**；**仓库名：`sk-chart`**（`https://github.com/KTBOY/sk-chart`）。
-- 为什么不用 `sk-chart`：npm 有防仿冒的**相似度校验**，会把包名归一化（转小写、去掉 `-_.`）后与既有包比对。`sk-chart` 归一化后正是 `skchart`，与已存在的 npm 包 `skchart` 完全同名，因此发布时被 `403 Package name too similar to existing package skchart` 拦截。`sk-chart-duo` 归一化为 `skchartduo`，与 `skchart` 有实质差异。
-- 改名的连锁影响：`package.json > name`、README 的安装/导入/徽标、工作流里的版本检查（`npm view "sk-chart-duo@$VERSION"`）。仓库名与 GitHub URL 不变。
+- **npm 包名：`sk-chart-duo`**；**GitHub 仓库同名：`sk-chart-duo`**（`https://github.com/KTBOY/sk-chart-duo`，原名 `sk-chart`，已改名，旧 URL 靠 GitHub 重定向仍可达）。本地目录名仍是 `sk-chart`。
+- 为什么包名不用 `sk-chart`：npm 有防仿冒的**相似度校验**，会把包名归一化（转小写、去掉 `-_.`）后与既有包比对。`sk-chart` 归一化后正是 `skchart`，与已存在的 npm 包 `skchart` 完全同名，因此发布时被 `403 Package name too similar to existing package skchart` 拦截。`sk-chart-duo` 归一化为 `skchartduo`，与 `skchart` 有实质差异。
+- 改名的连锁影响：`package.json > name` 与 `repository`/`homepage`/`bugs` 三处 URL、README 的安装/导入/徽标、工作流里的版本检查（`npm view "sk-chart-duo@$VERSION"`）、以及 **npm Trusted Publisher 里的 Repository 字段**（见第二节，仓库改名后这里必须跟着改，否则 OIDC 断言不匹配、发布被拒）。
 
 ## 前置条件
 
@@ -75,15 +75,18 @@ GitHub Actions 通过 OIDC 短期身份直接发布，**无需保存任何 NPM_T
 登录 npmjs.com → 打开 `sk-chart-duo` 包的 **Settings** → **Trusted Publisher / 可信发布者** → 选择 **GitHub Actions**，填写：
 
 - Organization or user：`KTBOY`
-- Repository：`sk-chart`
-- Workflow filename：`publish-npm.yml`
+- Repository：`sk-chart-duo`（GitHub 仓库现名；填错或仓库改名后没跟着改，OIDC 断言对不上，发布直接被拒）
+- Workflow filename：`publish-npm.yml`（只填文件名，不带 `.github/workflows/` 前缀）
 - Environment：留空
+- Allowed actions：**全部不勾** —— `npm stage publish` 始终允许，已覆盖本工作流；勾 `Allow npm publish` / `Allow npm dist-tag` 是额外放开直发与改 dist-tag 的权限，用不上就别给
 
-保存即可（注意 Repository 填的是 GitHub 仓库名 `sk-chart`，不是包名）。
+保存即可。注意 npm 的这条配置**创建后不可修改**，填错了只能 Delete 再重建。
 
 ### 2. 工作流已就绪
 
-[`.github/workflows/publish-npm.yml`](./.github/workflows/publish-npm.yml) 已配置为 OIDC 发布：`id-token: write` 权限 + 升级 npm 到最新（OIDC 需 npm >= 11.5.1）+ `npm publish`，**无需任何密钥，也无需改动**。
+[`.github/workflows/publish-npm.yml`](./.github/workflows/publish-npm.yml) 已配置为 OIDC 发布：`id-token: write` 权限 + 升级 npm 到最新（OIDC 需 npm >= 11.5.1）+ `npm publish --access public --provenance`，**无需任何密钥**。
+
+`--provenance` 这个 flag **不能省**：npm 不会因为配了 Trusted Publisher 就自动走 OIDC，缺了它就退化成普通鉴权发布，而 CI 上没有 token，于是 `npm publish` 直接失败。这条是踩过才知道的 —— 首次 `v0.1.1` 发布失败（run #1、#2 均卡在 Publish 步骤）时就栽在这里，同时 `package.json` 的 `repository.url` 还指着改名前的 `KTBOY/sk-chart`，两处都得对齐。
 
 工作流内置两重守卫：
 

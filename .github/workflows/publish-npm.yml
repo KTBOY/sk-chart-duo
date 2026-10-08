@@ -1,11 +1,13 @@
 name: Publish to npm
 
-# 通过 npm Trusted Publishing（OIDC）发布 sk-chart-duo —— 无需任何 NPM_TOKEN，自动附带 provenance。
+# 通过 npm Trusted Publishing（OIDC）发布 sk-chart-duo —— 无需任何 NPM_TOKEN。
+# provenance 不会自动开启，必须显式带 --provenance（见下方 Publish 步骤），否则 npm 走普通鉴权发布、因无 token 而失败。
 # 前置条件（一次性）：在 npmjs.com 的 sk-chart-duo 包 Settings → Trusted Publisher 选择 GitHub Actions，填写：
 #   Organization or user: KTBOY
-#   Repository:          sk-chart
+#   Repository:          sk-chart-duo   # 必须与 package.json > repository.url 指向的仓库同名
 #   Workflow filename:   publish-npm.yml
 #   Environment:         留空
+#   Allowed actions:     全部不勾（npm stage publish 始终允许，已够本工作流用）
 #
 # 触发：推送 v* tag（如 v0.1.0），发布成功后自动创建 GitHub Release —— 全自动、零手动点击。
 on:
@@ -68,9 +70,11 @@ jobs:
       # prepublishOnly 钩子会自动执行 typecheck + test + build，保证发布产物是最新且验证过的。
       - name: Publish sk-chart-duo (OIDC Trusted Publishing)
         if: steps.check.outputs.skip != 'true'
-        run: npm publish --access public
+        run: npm publish --access public --provenance
 
       # npm 发布成功后才创建 GitHub Release；已存在则跳过（支持工作流重跑）。
+      # 刻意不加 --verify-tag：它要求签名 tag，而 `npm version` 默认产出的是未签名 annotated tag，
+      # 加上就会出现「npm 已发布成功、建 Release 这步失败」。版本真伪由上面的 tag/版本一致性校验兜。
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -78,4 +82,4 @@ jobs:
         run: |
           gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+            --title "$GITHUB_REF_NAME" --generate-notes

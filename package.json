@@ -27,13 +27,13 @@
   ],
   "sideEffects": false,
   "author": "KTBOY",
-  "homepage": "https://github.com/KTBOY/sk-chart#readme",
+  "homepage": "https://github.com/KTBOY/sk-chart-duo#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KTBOY/sk-chart.git"
+    "url": "git+https://github.com/KTBOY/sk-chart-duo.git"
   },
   "bugs": {
-    "url": "https://github.com/KTBOY/sk-chart/issues"
+    "url": "https://github.com/KTBOY/sk-chart-duo/issues"
   },
   "engines": {
     "node": ">=18.0.0"
