@@ -3,6 +3,12 @@ chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
+REM 本机 HTTP 代理：直连 GitHub 推送失败（常见报错 SSL_ERROR_SYSCALL）时用它重试一次。
+REM 不需要就留空：set "PUSH_PROXY="
+set "PUSH_PROXY=http://127.0.0.1:7897"
+REM 文档站仓库（KTBOY/sh-design）的本地路径，仅用于发版后打印同步待办；不存在则只指向 RELEASING.md。
+set "DOCS_DIR=D:\my\git\sh-ui"
+
 echo ==========================================
 echo    sk-chart 提交 / 发布助手
 echo ==========================================
@@ -54,10 +60,10 @@ if "%MSG%"=="" set MSG=chore: update
 
 git commit -m "%MSG%" || goto :fail
 :push
-git push origin main || goto :fail
+call :push_ref main || goto :fail
 echo.
 echo 已推送。CI 会自动跑门禁（typecheck / lint / test / build）：
-echo   https://github.com/KTBOY/sk-chart/actions
+echo   https://github.com/KTBOY/sk-chart-duo/actions
 echo.
 
 REM ---------- 4. 可选：打 tag 发版到 npm ----------
@@ -71,12 +77,27 @@ if not errorlevel 1 (
 )
 
 git tag -a "v%VER%" -m "v%VER%"
-git push origin "v%VER%" || goto :fail
+call :push_ref v%VER% || goto :fail
 echo.
-echo tag v%VER% 已推送，后面全自动，无需任何手动操作：
-echo   CI 会构建并通过 OIDC 可信发布到 npm（免验证码），成功后自动创建 GitHub Release。
-echo   可在 Actions 页面观察进度（约 1 分钟），完成后 npm 上即可搜到新版本。
-start "" "https://github.com/KTBOY/sk-chart/actions/workflows/publish-npm.yml"
+echo tag v%VER% 已推送。npm 侧全自动：
+echo   CI 构建通过后经 OIDC 可信发布到 npm（免验证码），成功后自动创建 GitHub Release。
+start "" "https://github.com/KTBOY/sk-chart-duo/actions/workflows/publish-npm.yml"
+echo.
+echo ==========================================
+echo    还差一步：文档站不会自动更新
+echo ==========================================
+echo   sk-chart 与文档站是两个仓库，唯一的连接点是 npm 版本号。等流水线变绿后手动跑：
+echo.
+if exist "%DOCS_DIR%\pnpm-workspace.yaml" (
+  echo     cd /d "%DOCS_DIR%"
+  echo     pnpm --filter @sh-design/docs add sk-chart-duo@^^%VER%
+  echo     pnpm docs:build
+  echo     提交 docs/package.json、pnpm-lock.yaml、pnpm-workspace.yaml 与改动的 md，push main 即上线 Pages
+  echo.
+  echo   别用 pnpm update：它会「跑成功」却仍装旧版本，原因见 RELEASING.md「文档站同步」。
+) else (
+  echo   未找到文档站本地目录 %DOCS_DIR%，完整步骤见 RELEASING.md「文档站同步（发版后必做）」。
+)
 goto :end
 
 :fail
@@ -90,3 +111,19 @@ echo.
 echo 完成。
 pause
 endlocal
+exit /b 0
+
+REM ---------- 子程序：推送，直连失败则走本机代理重试一次 ----------
+REM 用法：call :push_ref main   /   call :push_ref v0.1.1
+:push_ref
+git push origin %~1
+if not errorlevel 1 exit /b 0
+if "%PUSH_PROXY%"=="" (
+  echo [错误] 推送失败，且 PUSH_PROXY 未配置，无法走代理重试。
+  exit /b 1
+)
+echo [提示] 直连推送失败（常见为 SSL_ERROR_SYSCALL），改用本机代理 %PUSH_PROXY% 重试...
+git -c http.proxy=%PUSH_PROXY% -c https.proxy=%PUSH_PROXY% push origin %~1
+if not errorlevel 1 exit /b 0
+echo [错误] 走代理仍失败，请确认 %PUSH_PROXY% 上有代理在监听，或把 PUSH_PROXY 留空后自行排查网络。
+exit /b 1
