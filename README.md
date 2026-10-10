@@ -3,6 +3,9 @@
 [![npm version](https://img.shields.io/npm/v/sk-chart-duo.svg)](https://www.npmjs.com/package/sk-chart-duo)
 [![license: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](./LICENSE)
 
+<!-- 图片用 raw.githubusercontent 绝对地址：README 会随 npm 包发布，相对路径在 npm 页面必然 404。 -->
+![FoldBarChart 的四层构成：柱体竖向渐变 → 叠加斜纹 pattern → 折面与折棱 → 文字、浮标与选中态](https://raw.githubusercontent.com/KTBOY/sk-chart-duo/main/docs/assets/fold-chart-layers.png)
+
 A lightweight, SVG-first chart library with handcrafted visual styles.
 
 首版提供 **FoldBarChart**：折纸漏斗柱状图 —— 渐变柱体由"折面"相连，闲置列呈条纹纸感，高亮列浮起 wash 与 tooltip。源自 `payments-fold-chart.html` 效果 3 的组件化实现。

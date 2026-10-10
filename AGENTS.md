@@ -15,6 +15,7 @@ sk-chart：轻量 SVG 优先图表库。首版提供 **FoldBarChart**（折纸�
 - `tests/` — vitest（jsdom）；`tests/probe-boundary.test.ts` 为边界回归
 - `examples/` — Vite demo（双实例 + 事件日志 + 控制按钮）
 - `payments-fold-chart.html` — 原稿，视觉基准（效果 3 为对照目标）
+- `docs/assets/` — README 配图（二进制直存仓库，无 LFS）。README 里用 `raw.githubusercontent.com/KTBOY/sk-chart-duo/main/...` 绝对地址引用，因为 README 随包发布，相对路径在 npm 页面必然 404
 - `.github/workflows/` — `ci.yml`（门禁）+ `publish-npm.yml`（OIDC 可信发布 + 自动 Release）
 - `release.bat` / `RELEASING.md` — 一键提交发布助手 / 维护者发布指南
 
